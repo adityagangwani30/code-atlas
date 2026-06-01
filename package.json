@@ -27,6 +27,7 @@
     "commander": "^12.1.0",
     "figlet": "^1.8.0",
     "inquirer": "^12.4.1",
+    "ignore": "^7.0.5",
     "ora": "^8.2.0"
   },
   "devDependencies": {
