@@ -1,10 +1,10 @@
-import path from 'node:path';
-
+import { promises as fs } from 'node:fs';
 import type { Command } from 'commander';
 import inquirer from 'inquirer';
 
-import { createSpinner } from '../utils/spinner.js';
-import { ensureDirectory, getAtlasOutputDirectory } from '../utils/fs.js';
+import { StaticAnalyzer } from '../analyzer/index.js';
+import { DocumentGenerator } from '../generator/index.js';
+import { getAtlasOutputDirectory } from '../utils/fs.js';
 import { logger } from '../utils/logger.js';
 
 export interface GenerateOptions {
@@ -13,27 +13,56 @@ export interface GenerateOptions {
   format?: 'md' | 'html';
 }
 
-export async function handleGenerate(this: Command, options: GenerateOptions): Promise<void> {
-  const spinner = createSpinner('Preparing atlas output');
-  spinner.start();
+export async function handleGenerate(this: Command, _options: GenerateOptions): Promise<void> {
+  void _options;
+  const cwd = process.cwd();
+  const outputDirectory = getAtlasOutputDirectory(cwd);
+  const outputExists = await directoryHasContents(outputDirectory);
 
-  const outputDirectory = getAtlasOutputDirectory();
-  await ensureDirectory(outputDirectory);
-  spinner.succeed(`Output directory ready at ${outputDirectory}`);
+  if (outputExists) {
+    const { overwriteMode } = await inquirer.prompt<{ overwriteMode: 'yes' | 'no' | 'merge' }>([
+      {
+        type: 'list',
+        name: 'overwriteMode',
+        message: 'Atlas exists. Overwrite? (yes/no/merge)',
+        choices: [
+          { name: 'yes', value: 'yes' },
+          { name: 'no', value: 'no' },
+          { name: 'merge', value: 'merge' }
+        ],
+        default: 'merge'
+      }
+    ]);
 
-  const answers = await inquirer.prompt<{ includeExamples: boolean }>([
-    {
-      type: 'confirm',
-      name: 'includeExamples',
-      message: 'Include starter examples?',
-      default: true
+    if (overwriteMode === 'no') {
+      logger.info('Generation cancelled.');
+      return;
     }
-  ]);
 
-  logger.info(
-    `Generate stub running with format=${options.format ?? 'md'}, ai=${options.ai !== false}, focus=${options.focus ?? 'none'}, examples=${answers.includeExamples}`
-  );
+    if (overwriteMode === 'yes') {
+      await fs.rm(outputDirectory, { recursive: true, force: true });
+    }
+  }
 
-  const targetFile = path.join(outputDirectory, `atlas.${options.format ?? 'md'}`);
-  logger.info(`Would write generated content to ${targetFile}`);
+  const startedAt = process.hrtime.bigint();
+  const analyzer = new StaticAnalyzer(cwd);
+  const analysis = await analyzer.analyze();
+  const generator = new DocumentGenerator(analysis, outputDirectory);
+  const result = await generator.generate('merge');
+  const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+
+  console.log(`✓ Generated ${result.generatedFiles.length} documents in /docs/atlas/`);
+  for (const fileName of result.generatedFiles) {
+    console.log(`✓ ${fileName}`);
+  }
+  console.log(`Time: ${elapsedSeconds.toFixed(1)}s`);
+}
+
+async function directoryHasContents(directoryPath: string): Promise<boolean> {
+  try {
+    const entries = await fs.readdir(directoryPath);
+    return entries.length > 0;
+  } catch {
+    return false;
+  }
 }

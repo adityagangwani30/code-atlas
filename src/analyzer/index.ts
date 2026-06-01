@@ -35,6 +35,7 @@ export interface FolderStructureItem {
 export interface EntryPointItem {
   file: string;
   type: string;
+  command?: string;
 }
 
 export interface DependencyItem {
@@ -445,7 +446,7 @@ export class StaticAnalyzer {
     }
 
     if (manifest.startScript) {
-      entries.push({ file: 'package.json', type: `start-script: ${manifest.startScript}` });
+      entries.push({ file: 'package.json', type: `start-script: ${manifest.startScript}`, command: manifest.startScript });
     }
 
     for (const binTarget of manifest.binTargets) {
@@ -454,10 +455,14 @@ export class StaticAnalyzer {
 
     const dockerfilePath = files.find((file) => path.posix.basename(file.relativePath) === 'Dockerfile');
     if (dockerfilePath) {
-      entries.push({ file: dockerfilePath.relativePath, type: 'docker-entry-point' });
       const dockerCommand = await parseDockerfileCommand(dockerfilePath.absolutePath);
+      const dockerEntry: EntryPointItem = { file: dockerfilePath.relativePath, type: 'docker-entry-point' };
       if (dockerCommand) {
-        entries.push({ file: dockerfilePath.relativePath, type: `docker-${dockerCommand.split(/\s+/)[0]?.toLowerCase() ?? 'command'}` });
+        dockerEntry.command = dockerCommand;
+      }
+      entries.push(dockerEntry);
+      if (dockerCommand) {
+        entries.push({ file: dockerfilePath.relativePath, type: `docker-${dockerCommand.split(/\s+/)[0]?.toLowerCase() ?? 'command'}`, command: dockerCommand });
       }
     }
 
