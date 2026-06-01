@@ -10,7 +10,7 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   prettier,
   {
-    files: ['src/**/*.ts', 'test/**/*.ts'],
+    files: ['src/**/*.ts', 'test/**/*.ts', 'tests/**/*.ts'],
     languageOptions: {
       parserOptions: {
         project: ['./tsconfig.eslint.json'],

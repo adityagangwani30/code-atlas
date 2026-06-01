@@ -14,7 +14,7 @@
     "dev": "tsx watch src/cli/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli/index.js",
-    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"tests/**/*.ts\"",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest"
